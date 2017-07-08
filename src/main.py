@@ -1,67 +1,80 @@
 import sqlite3
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QGridLayout
-
+from PyQt5.QtWidgets import QApplication, QWidget, QListView, QVBoxLayout
+from PyQt5.QtCore import QAbstractListModel, QVariant, Qt
 
 def get_all_entries():
-    """ Return an unsorted array of all entries in the DB."""
-    conn = sqlite3.connect('journi.db')
-    c = conn.cursor()
-    c.execute('''SELECT * from entries''')
-    entries = c.fetchall()
-    return entries
+        """ Return an unsorted array of all entries in the DB."""
+        conn = sqlite3.connect('journi.db')
+        c = conn.cursor()
+        c.execute('''SELECT * from entries''')
+        entries = c.fetchall()
+        return entries
 
 
-def add_entry(date, content):
-    """ Add an entry to the DB.
+class JourniData(object):
 
-    date: string
-    content: string
-    """
-    conn = sqlite3.connect('journi.db')
-    c = conn.cursor()
-    new_entry = (date, content)
-    c.execute('''INSERT INTO entries VALUES (?,?)', new_entry''')
+    def __init__(self):
+        self.data = get_all_entries()
+
+    def count(self):
+        return len(self.data)
+
+    def get_item_at(self, index):
+        return str(self.data[index])
+
+    def add_entry(date, content):
+        """ Add an entry to the DB.
+
+        date: string
+        content: string
+        """
+        conn = sqlite3.connect('journi.db')
+        c = conn.cursor()
+        new_entry = (date, content)
+        c.execute('''INSERT INTO entries VALUES (?,?)', new_entry''')
 
 
-def draw_window():
-    app = QApplication(sys.argv)
+class JourniModel(QAbstractListModel):
 
-    w = QWidget()
-    w.resize(250,250)
-    w.move(300, 300)
-    w.setWindowTitle('Journi')
-    w.show()
+    def __init__(self, data_source, parent=None):
+        super().__init__()
+        self.data_source = data_source
 
-    sys.exit(app.exec_())
+    def rowCount(self, model_index):
+        return self.data_source.count()
+
+    def data(self, model_index, role):
+        if model_index.isValid() and role == Qt.DisplayRole:
+            return self.data_source.get_item_at(model_index.row())
+        return QVariant()
 
 
 class JourniUI(QWidget):
     
     def __init__(self):
         super().__init__()
-        self.init_ui()
 
     def init_ui(self):
-        self.layout = QGridLayout()
-        
-        self.setLayout(self.layout)
-        self.setGeometry(300, 300, 300, 200)
         self.setWindowTitle('Journi')
-        
-        self.show()
+        self.setMinimumSize(400, 100)
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
 
-    def show_entries(self, entries): 
-        for e in entries:
-            lbl = QLabel(self)
-            lbl.setGeometry(0,0,20,400)
-            lbl.setText(e[0])
-            self.layout.addWidget(lbl)
+    def show_all_entries_view(self):
+        data = JourniData()
+        model = JourniModel(data)
+        view = QListView()
+        view.setModel(model)
+        self.layout.addWidget(view)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ui = JourniUI()
-    ui.show_entries(get_all_entries())
-    print(get_all_entries())
+    ui.init_ui()
+    ui.show_all_entries_view()
+    
+    ui.show()
+
     sys.exit(app.exec_())
