@@ -1,6 +1,7 @@
 import sqlite3
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QListView, QVBoxLayout
+from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
+        QPushButton)
 from PyQt5.QtCore import QAbstractListModel, QVariant, Qt
 
 def get_all_entries():
@@ -60,13 +61,29 @@ class JourniUI(QWidget):
         self.setMinimumSize(400, 100)
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
+        data = JourniData()
+        self.model = JourniModel(data)
 
     def show_all_entries_view(self):
-        data = JourniData()
-        model = JourniModel(data)
         view = QListView()
-        view.setModel(model)
+        view.setModel(self.model)
+        self.view = view
         self.layout.addWidget(view)
+        button = QPushButton("&Go")
+        button.clicked.connect(self.select_entry)
+        self.layout.addWidget(button)
+
+    def show_one_entry_view(self, index):
+        print(index.data())
+        pass
+
+    def select_entry(self):
+        indexes = self.view.selectedIndexes()
+        if len(indexes) == 0:
+            print("No entries selected")
+        else:
+            index = indexes[0]
+            self.show_one_entry_view(index)
 
 
 if __name__ == "__main__":
