@@ -1,8 +1,8 @@
 import sqlite3
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
-        QPushButton)
-from PyQt5.QtCore import QAbstractListModel, QVariant, Qt
+        QPushButton, QStackedWidget, QMainWindow)
+from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
 
 def get_all_entries():
         """ Return an unsorted array of all entries in the DB."""
@@ -51,7 +51,43 @@ class JourniModel(QAbstractListModel):
         return QVariant()
 
 
-class JourniUI(QWidget):
+class JourniListWidget(QWidget):
+    """
+    Widget displaying the list of all entries, with a select button.
+    """
+    
+    # Needs to be a class member
+    entryselect_signal = pyqtSignal([QModelIndex])
+
+    def __init__(self, model):
+        super().__init__()
+        self.setMinimumSize(400, 100)
+        layout = QVBoxLayout()
+        view = QListView()
+        view.setModel(model)
+        layout.addWidget(view)
+        button = QPushButton("&Go")
+        button.clicked.connect(self.emit_entryselect_event)
+        layout.addWidget(button)
+        self.setLayout(layout)
+        self.view = view
+
+    def emit_entryselect_event(self):
+        """
+        Emit event containing currently selected QModelIndex
+        """
+        indexes = self.view.selectedIndexes()
+        if len(indexes) == 0:
+            print("No entries selected")
+        else:
+            index = indexes[0]
+            self.entryselect_signal.emit(index)
+
+
+class JourniUI(QMainWindow):
+    """
+    Main app window.
+    """
     
     def __init__(self):
         super().__init__()
@@ -59,19 +95,25 @@ class JourniUI(QWidget):
     def init_ui(self):
         self.setWindowTitle('Journi')
         self.setMinimumSize(400, 100)
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.widgets = {}
+        self.setup_model()
+        self.setup_views()
+
+    def setup_model(self):
         data = JourniData()
         self.model = JourniModel(data)
 
-    def show_all_entries_view(self):
-        view = QListView()
-        view.setModel(self.model)
-        self.view = view
-        self.layout.addWidget(view)
-        button = QPushButton("&Go")
-        button.clicked.connect(self.select_entry)
-        self.layout.addWidget(button)
+    def setup_views(self):
+        # Use QStackedWidget to 'easily' switch between views
+        stacked = QStackedWidget()
+        self.stacked = stacked
+        self.setCentralWidget(stacked)
+        
+        widget = JourniListWidget(self.model)
+        widget.entryselect_signal.connect(self.show_one_entry_view)
+        
+        index = stacked.addWidget(widget)
+        self.widgets["entries_list"] = widget
 
     def show_one_entry_view(self, index):
         print(index.data())
@@ -90,7 +132,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     ui = JourniUI()
     ui.init_ui()
-    ui.show_all_entries_view()
+    #ui.show_all_entries_view()
     
     ui.show()
 
