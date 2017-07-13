@@ -1,7 +1,7 @@
 import sqlite3
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
-        QPushButton, QStackedWidget, QMainWindow)
+        QPushButton, QStackedWidget, QMainWindow, QLabel)
 from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
 
 def get_all_entries():
@@ -22,7 +22,7 @@ class JourniData(object):
         return len(self.data)
 
     def get_item_at(self, index):
-        return str(self.data[index])
+        return self.data[index]
 
     def add_entry(date, content):
         """ Add an entry to the DB.
@@ -46,6 +46,11 @@ class JourniModel(QAbstractListModel):
         return self.data_source.count()
 
     def data(self, model_index, role):
+        if model_index.isValid() and role == Qt.DisplayRole:
+            return str(self.data_source.get_item_at(model_index.row()))
+        return QVariant()
+
+    def data_raw(self, model_index, role):
         if model_index.isValid() and role == Qt.DisplayRole:
             return self.data_source.get_item_at(model_index.row())
         return QVariant()
@@ -84,6 +89,34 @@ class JourniListWidget(QWidget):
             self.entryselect_signal.emit(index)
 
 
+class JourniEntryWidget(QWidget):
+    """
+    Widget displaying one entry, with editable text field.
+    """
+
+    closeentry_signal = pyqtSignal()
+
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+        self.setMinimumSize(400, 100)
+        layout = QVBoxLayout()
+        self.date = QLabel()
+        layout.addWidget(self.date)
+        self.content = QLabel()
+        layout.addWidget(self.content)
+        button = QPushButton("&Back")
+        button.clicked.connect(self.closeentry_signal)
+        layout.addWidget(button)
+        self.setLayout(layout)
+        
+
+    def set_entry(self, model_index):
+        data = model_index.data()
+        self.date.setText(data[0])
+        self.content.setText(data[1])
+
+
 class JourniUI(QMainWindow):
     """
     Main app window.
@@ -91,6 +124,7 @@ class JourniUI(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle('Journi')
@@ -108,16 +142,25 @@ class JourniUI(QMainWindow):
         stacked = QStackedWidget()
         self.stacked = stacked
         self.setCentralWidget(stacked)
-        
+       
+        # All entries view
         widget = JourniListWidget(self.model)
         widget.entryselect_signal.connect(self.show_one_entry_view)
-        
         index = stacked.addWidget(widget)
         self.widgets["entries_list"] = widget
 
+        #One entry view
+        widget = JourniEntryWidget(self.model)
+        widget.closeentry_signal.connect(self.show_all_entries_view)
+        index = stacked.addWidget(widget)
+        self.widgets["entry_details"] = widget
+
     def show_one_entry_view(self, index):
-        print(index.data())
-        pass
+        self.widgets["entry_details"].set_entry(index)
+        self.stacked.setCurrentWidget(self.widgets["entry_details"])
+
+    def show_all_entries_view(self):
+        self.stacked.setCurrentWidget(self.widgets["entries_list"])
 
     def select_entry(self):
         indexes = self.view.selectedIndexes()
@@ -130,9 +173,8 @@ class JourniUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
     ui = JourniUI()
-    ui.init_ui()
-    #ui.show_all_entries_view()
     
     ui.show()
 
