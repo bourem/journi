@@ -50,8 +50,8 @@ class JourniModel(QAbstractListModel):
             return str(self.data_source.get_item_at(model_index.row()))
         return QVariant()
 
-    def data_raw(self, model_index, role):
-        if model_index.isValid() and role == Qt.DisplayRole:
+    def data_details(self, model_index):
+        if model_index.isValid():
             return self.data_source.get_item_at(model_index.row())
         return QVariant()
 
@@ -112,7 +112,7 @@ class JourniEntryWidget(QWidget):
         
 
     def set_entry(self, model_index):
-        data = model_index.data()
+        data = self.model.data_details(model_index)
         self.date.setText(data[0])
         self.content.setText(data[1])
 
