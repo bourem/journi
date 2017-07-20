@@ -1,7 +1,7 @@
 import sqlite3
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
-        QPushButton, QStackedWidget, QMainWindow, QLabel)
+        QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit)
 from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
 
 def get_all_entries():
@@ -23,6 +23,9 @@ class JourniData(object):
 
     def get_item_at(self, index):
         return self.data[index]
+
+    def set_item_at(self, index, new_value):
+        self.data[index] = new_value
 
     def add_entry(date, content):
         """ Add an entry to the DB.
@@ -49,6 +52,11 @@ class JourniModel(QAbstractListModel):
         if model_index.isValid() and role == Qt.DisplayRole:
             return str(self.data_source.get_item_at(model_index.row()))
         return QVariant()
+
+    def setData(self, model_index, new_value):
+        self.data_source.set_item_at(model_index.row(), new_value)
+        self.dataChanged.emit(model_index, model_index)
+        return True
 
     def data_details(self, model_index):
         if model_index.isValid():
@@ -103,18 +111,32 @@ class JourniEntryWidget(QWidget):
         layout = QVBoxLayout()
         self.date = QLabel()
         layout.addWidget(self.date)
-        self.content = QLabel()
+        self.content = QPlainTextEdit()
         layout.addWidget(self.content)
         button = QPushButton("&Back")
         button.clicked.connect(self.closeentry_signal)
         layout.addWidget(button)
+        button = QPushButton("&Save")
+        button.clicked.connect(self.save_entry)
+        layout.addWidget(button)
         self.setLayout(layout)
+        self.current_model_index = None
         
-
     def set_entry(self, model_index):
         data = self.model.data_details(model_index)
         self.date.setText(data[0])
-        self.content.setText(data[1])
+        self.content.setDocumentTitle(data[0])
+        self.content.setPlainText(data[1])
+        self.current_model_index = model_index
+    
+    def save_entry(self):
+        self.model.setData(
+                self.current_model_index,
+                (self.date.text(), self.content.toPlainText()))
+
+    def unset_entry(self):
+        self.current_model_index = None
+        pass
 
 
 class JourniUI(QMainWindow):
