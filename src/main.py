@@ -6,20 +6,12 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout,
 from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
 
 
-def get_all_entries():
-        """ Return an unsorted array of all entries in the DB."""
-        conn = sqlite3.connect('journi.db')
-        c = conn.cursor()
-        c.execute('''SELECT * from entries''')
-        entries = c.fetchall()
-        conn.close()
-        return entries
-
 
 class JourniData(object):
+    """ Serve and set Journi data stored in SQLite db """
 
     def __init__(self):
-        self.data = get_all_entries()
+        self.refresh_all_data()
 
     def count(self):
         return len(self.data)
@@ -28,8 +20,16 @@ class JourniData(object):
         return self.data[index][1:]
 
     def set_item_at(self, index, new_value):
-        self.data[index] = (self.data[index][0],) + new_value
-
+        data = (self.data[index][0],) + new_value
+        self.data[index] = data
+        conn = sqlite3.connect('journi.db')
+        c = conn.cursor()
+        print(data)
+        c.execute(
+                '''UPDATE entries SET date=?, content=? WHERE ID=?''',
+                (data[1], data[2], data[0]))
+        conn.commit()
+        conn.close()
 
     def add_entry(date, content):
         """ Add an entry to the DB.
@@ -41,6 +41,15 @@ class JourniData(object):
         c = conn.cursor()
         new_entry = (date, content)
         c.execute('''INSERT INTO entries VALUES (?,?)''', new_entry)
+        conn.close()
+
+    def refresh_all_data(self):
+        """ Replace data by current data in db."""
+        conn = sqlite3.connect('journi.db')
+        c = conn.cursor()
+        c.execute('''SELECT * from entries''')
+        entries = c.fetchall()
+        self.data = entries
         conn.close()
 
 
