@@ -1,8 +1,10 @@
 import sqlite3
 import sys
+
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
         QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit)
 from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
+
 
 def get_all_entries():
         """ Return an unsorted array of all entries in the DB."""
@@ -10,6 +12,7 @@ def get_all_entries():
         c = conn.cursor()
         c.execute('''SELECT * from entries''')
         entries = c.fetchall()
+        conn.close()
         return entries
 
 
@@ -22,10 +25,11 @@ class JourniData(object):
         return len(self.data)
 
     def get_item_at(self, index):
-        return self.data[index]
+        return self.data[index][1:]
 
     def set_item_at(self, index, new_value):
-        self.data[index] = new_value
+        self.data[index] = (self.data[index][0],) + new_value
+
 
     def add_entry(date, content):
         """ Add an entry to the DB.
@@ -36,7 +40,8 @@ class JourniData(object):
         conn = sqlite3.connect('journi.db')
         c = conn.cursor()
         new_entry = (date, content)
-        c.execute('''INSERT INTO entries VALUES (?,?)', new_entry''')
+        c.execute('''INSERT INTO entries VALUES (?,?)''', new_entry)
+        conn.close()
 
 
 class JourniModel(QAbstractListModel):
@@ -50,7 +55,10 @@ class JourniModel(QAbstractListModel):
 
     def data(self, model_index, role):
         if model_index.isValid() and role == Qt.DisplayRole:
-            return str(self.data_source.get_item_at(model_index.row()))
+            data = list(self.data_source.get_item_at(model_index.row()))
+            if len(data[1]) > 20:
+                data[1] = data[1][:20] + "…"
+            return "{0[0]} - {0[1]}".format(data)
         return QVariant()
 
     def setData(self, model_index, new_value):
