@@ -6,11 +6,32 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout,
 from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
 
 
+class DBConnection(object):
+    """ With statement context manager for DB Connection """
+
+    def __init__(self, db_name):
+        self.db_name = db_name
+        self.conn = None
+
+    def __enter__(self):
+        self.conn = sqlite3.connect(self.db_name)
+        return self.conn
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            self.conn.commit()
+            self.conn.close()
+        finally:
+            self.conn = None
+
 
 class JourniData(object):
-    """ Serve and set Journi data stored in SQLite db """
+    """ Class to serve and set Journi data stored in SQLite db """
 
-    def __init__(self):
+    db_name_default = "journi.db"
+
+    def __init__(self, db_name=None):
+        self.db_name = db_name if db_name else self.db_name_default
         self.refresh_all_data()
 
     def count(self):
@@ -22,35 +43,30 @@ class JourniData(object):
     def set_item_at(self, index, new_value):
         data = (self.data[index][0],) + new_value
         self.data[index] = data
-        conn = sqlite3.connect('journi.db')
-        c = conn.cursor()
-        print(data)
-        c.execute(
-                '''UPDATE entries SET date=?, content=? WHERE ID=?''',
-                (data[1], data[2], data[0]))
-        conn.commit()
-        conn.close()
+        with DBConnection(self.db_name) as conn:
+            c = conn.cursor()
+            c.execute(
+                    '''UPDATE entries SET date=?, content=? WHERE ID=?''',
+                    (data[1], data[2], data[0]))
 
-    def add_entry(date, content):
+    def add_entry(self, date, content):
         """ Add an entry to the DB.
 
         date: string
         content: string
         """
-        conn = sqlite3.connect('journi.db')
-        c = conn.cursor()
-        new_entry = (date, content)
-        c.execute('''INSERT INTO entries VALUES (?,?)''', new_entry)
-        conn.close()
+        with DBConnection(self.db_name) as conn:
+            c = conn.cursor()
+            new_entry = (date, content)
+            c.execute('''INSERT INTO entries VALUES (?,?)''', new_entry)
 
     def refresh_all_data(self):
         """ Replace data by current data in db."""
-        conn = sqlite3.connect('journi.db')
-        c = conn.cursor()
-        c.execute('''SELECT * from entries''')
-        entries = c.fetchall()
-        self.data = entries
-        conn.close()
+        with DBConnection(self.db_name) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT * from entries''')
+            entries = c.fetchall()
+            self.data = entries
 
 
 class JourniModel(QAbstractListModel):
