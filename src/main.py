@@ -4,7 +4,8 @@ from contextlib import contextmanager
 
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
         QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit)
-from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
+from PyQt5.QtCore import (QAbstractListModel, QVariant, Qt, pyqtSignal, 
+        QModelIndex, QIdentityProxyModel)
 
 
 @contextmanager
@@ -70,11 +71,10 @@ class JourniModel(QAbstractListModel):
         return self.data_source.count()
 
     def data(self, model_index, role):
-        if model_index.isValid() and role == Qt.DisplayRole:
-            data = list(self.data_source.get_item_at(model_index.row()))
-            if len(data[1]) > 20:
-                data[1] = data[1][:20] + "…"
-            return "{0[0]} - {0[1]}".format(data)
+        if not model_index.isValid():
+            return QVariant()
+        if role in [Qt.DisplayRole, Qt.EditRole]:
+            return self.data_source.get_item_at(model_index.row())
         return QVariant()
 
     def setData(self, model_index, new_value):
@@ -82,10 +82,26 @@ class JourniModel(QAbstractListModel):
         self.dataChanged.emit(model_index, model_index)
         return True
 
-    def data_details(self, model_index):
-        if model_index.isValid():
-            return self.data_source.get_item_at(model_index.row())
-        return QVariant()
+    def addData(self, date, content):
+        self.data_source.addData(date, content)
+        self.dataChanged.emit()
+        return True
+
+
+class JourniListProxyModel(QIdentityProxyModel):
+
+    def __init__(self):
+        super(JourniListProxyModel, self).__init__()
+    
+    def data(self, model_index, role):
+        if role != Qt.DisplayRole:
+            return self.sourceModel().data(model_index, role)
+
+        data = list(self.sourceModel().data(model_index, role))
+        if len(data[1]) > 20:
+            data[1] = data[1][:20] + "…"
+        return "{0[0]} - {0[1]}".format(data)
+
 
 
 class JourniListWidget(QWidget):
@@ -147,7 +163,7 @@ class JourniEntryWidget(QWidget):
         self.current_model_index = None
         
     def set_entry(self, model_index):
-        data = self.model.data_details(model_index)
+        data = self.model.data(model_index, Qt.EditRole)
         self.date.setText(data[0])
         self.content.setDocumentTitle(data[0])
         self.content.setPlainText(data[1])
@@ -190,7 +206,9 @@ class JourniUI(QMainWindow):
         self.setCentralWidget(stacked)
        
         # All entries view
-        widget = JourniListWidget(self.model)
+        list_proxy_model = JourniListProxyModel()
+        list_proxy_model.setSourceModel(self.model)
+        widget = JourniListWidget(list_proxy_model)
         widget.entryselect_signal.connect(self.show_one_entry_view)
         index = stacked.addWidget(widget)
         self.widgets["entries_list"] = widget
