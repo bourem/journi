@@ -1,28 +1,19 @@
 import sqlite3
 import sys
+from contextlib import contextmanager
 
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
         QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit)
 from PyQt5.QtCore import QAbstractListModel, QVariant, Qt, pyqtSignal, QModelIndex
 
 
-class DBConnection(object):
+@contextmanager
+def db_connect(db_name):
     """ With statement context manager for DB Connection """
-
-    def __init__(self, db_name):
-        self.db_name = db_name
-        self.conn = None
-
-    def __enter__(self):
-        self.conn = sqlite3.connect(self.db_name)
-        return self.conn
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        try:
-            self.conn.commit()
-            self.conn.close()
-        finally:
-            self.conn = None
+    conn = sqlite3.connect(db_name)
+    yield conn
+    conn.commit()
+    conn.close()
 
 
 class JourniData(object):
@@ -43,7 +34,7 @@ class JourniData(object):
     def set_item_at(self, index, new_value):
         data = (self.data[index][0],) + new_value
         self.data[index] = data
-        with DBConnection(self.db_name) as conn:
+        with db_connect(self.db_name) as conn:
             c = conn.cursor()
             c.execute(
                     '''UPDATE entries SET date=?, content=? WHERE ID=?''',
@@ -55,14 +46,14 @@ class JourniData(object):
         date: string
         content: string
         """
-        with DBConnection(self.db_name) as conn:
+        with db_connect(self.db_name) as conn:
             c = conn.cursor()
             new_entry = (date, content)
             c.execute('''INSERT INTO entries VALUES (?,?)''', new_entry)
 
     def refresh_all_data(self):
         """ Replace data by current data in db."""
-        with DBConnection(self.db_name) as conn:
+        with db_connect(self.db_name) as conn:
             c = conn.cursor()
             c.execute('''SELECT * from entries''')
             entries = c.fetchall()
