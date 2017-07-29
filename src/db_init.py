@@ -6,7 +6,7 @@ if __name__ == "__main__":
     c = conn.cursor()
     c.execute('''CREATE TABLE entries
                  (
-                 id integer primary key autoincrement,
+                 id integer primary key,
                  date text not null, 
                  content text)''')
     conn.commit()
