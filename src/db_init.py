@@ -7,7 +7,7 @@ if __name__ == "__main__":
     c.execute('''CREATE TABLE entries
                  (
                  id integer primary key,
-                 date text not null, 
+                 date integer not null, 
                  content text)''')
     conn.commit()
     conn.close()

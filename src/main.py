@@ -33,14 +33,15 @@ class JourniData(object):
     def get_item_at(self, index):
         return self.data[index][1:]
 
-    def set_item_at(self, index, new_value):
-        data = (self.data[index][0],) + new_value
+    def set_item_at(self, index, new_content):
+        data = self.data[index]
+        data = (data[0],data[1], new_content)
         self.data[index] = data
         with db_connect(self.db_name) as conn:
             c = conn.cursor()
             c.execute(
-                    '''UPDATE entries SET date=?, content=? WHERE ID=?''',
-                    (data[1], data[2], data[0]))
+                    '''UPDATE entries SET content=? WHERE ID=?''',
+                    (data[2], data[0]))
 
     def add_entry(self, date=time.time(), content=""):
         """ Add an entry to the DB.
@@ -54,7 +55,6 @@ class JourniData(object):
             c.execute('''INSERT INTO entries(date, content) VALUES (?,?)''', new_entry)
             new_index = c.lastrowid
         self.data.append((new_index, date, content))
-        print(self.data)
 
     def refresh_all_data(self):
         """ Replace data by current data in db."""
@@ -89,8 +89,8 @@ class JourniModel(QAbstractListModel):
             return self.data_source.get_item_at(model_index.row())
         return QVariant()
 
-    def setData(self, model_index, new_value):
-        self.data_source.set_item_at(model_index.row(), new_value)
+    def setData(self, model_index, new_content):
+        self.data_source.set_item_at(model_index.row(), new_content)
         self.dataChanged.emit(model_index, model_index)
         return True
 
@@ -108,7 +108,7 @@ class JourniModel(QAbstractListModel):
     def append_new_row(self):
         new_index = self.rowCount(QModelIndex())
         self.beginInsertRows(QModelIndex(), new_index, new_index)
-        self.data_source.add_entry(str(int(time.time())))
+        self.data_source.add_entry(int(time.time()))
         self.endInsertRows()
         return True
 
@@ -123,6 +123,7 @@ class JourniListProxyModel(QIdentityProxyModel):
             return self.sourceModel().data(model_index, role)
 
         data = list(self.sourceModel().data(model_index, role))
+        data[0] = time.strftime("%Y-%m-%d", time.localtime(data[0]))
         if len(data[1]) > 20:
             data[1] = data[1][:20] + "…"
         return "{0[0]} - {0[1]}".format(data)
@@ -173,7 +174,6 @@ class JourniListWidget(QWidget):
         """
         """
         last_row_index = self.view.model().rowCount(QModelIndex())
-        #self.view.model().insertRows(last_row_index, 1)
         self.view.model().append_new_row()
 
         self.view.setCurrentIndex(
@@ -207,15 +207,16 @@ class JourniEntryWidget(QWidget):
         
     def set_entry(self, model_index):
         data = self.model.data(model_index, Qt.EditRole)
-        self.date.setText(data[0])
-        self.content.setDocumentTitle(data[0])
+        date_string = time.strftime("%Y-%m-%d (%a)", time.localtime(data[0]))
+        self.date.setText(date_string)
+        self.content.setDocumentTitle(date_string)
         self.content.setPlainText(data[1])
         self.current_model_index = model_index
     
     def save_entry(self):
         self.model.setData(
                 self.current_model_index,
-                (self.date.text(), self.content.toPlainText()))
+                self.content.toPlainText())
 
     def unset_entry(self):
         self.current_model_index = None
