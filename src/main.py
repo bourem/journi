@@ -1,6 +1,7 @@
 import sqlite3
 import sys
 from contextlib import contextmanager
+import time
 
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
         QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit)
@@ -41,7 +42,7 @@ class JourniData(object):
                     '''UPDATE entries SET date=?, content=? WHERE ID=?''',
                     (data[1], data[2], data[0]))
 
-    def add_entry(self, date, content):
+    def add_entry(self, date=time.time(), content=""):
         """ Add an entry to the DB.
 
         date: string
@@ -50,7 +51,10 @@ class JourniData(object):
         with db_connect(self.db_name) as conn:
             c = conn.cursor()
             new_entry = (date, content)
-            c.execute('''INSERT INTO entries VALUES (?,?)''', new_entry)
+            c.execute('''INSERT INTO entries(date, content) VALUES (?,?)''', new_entry)
+            new_index = c.lastrowid
+        self.data.append((new_index, date, content))
+        print(self.data)
 
     def refresh_all_data(self):
         """ Replace data by current data in db."""
@@ -59,6 +63,14 @@ class JourniData(object):
             c.execute('''SELECT * from entries''')
             entries = c.fetchall()
             self.data = entries
+
+    def insert_rows(self, start_index, count):
+        """ Add a number of rows with default values """
+        with db_connect(self.db_name) as conn:
+            c = conn.cursor()
+            new_entries = [(time.time(), "") for i in range(count)]
+            c.executemany('''INSERT INTO entries(date, content) VALUES (?,?)''', new_entries)
+        self.refresh_all_data()
 
 
 class JourniModel(QAbstractListModel):
@@ -87,6 +99,19 @@ class JourniModel(QAbstractListModel):
         self.dataChanged.emit()
         return True
 
+    def insertRows(self, row, count, parent=QModelIndex()):
+        self.beginInsertRows(parent, row, row+count-1)
+        self.data_source.insert_rows(row, count)
+        self.endInsertRows()
+        return True
+
+    def append_new_row(self):
+        new_index = self.rowCount(QModelIndex())
+        self.beginInsertRows(QModelIndex(), new_index, new_index)
+        self.data_source.add_entry(str(int(time.time())))
+        self.endInsertRows()
+        return True
+
 
 class JourniListProxyModel(QIdentityProxyModel):
 
@@ -102,6 +127,8 @@ class JourniListProxyModel(QIdentityProxyModel):
             data[1] = data[1][:20] + "…"
         return "{0[0]} - {0[1]}".format(data)
 
+    def append_new_row(self):
+        return self.sourceModel().append_new_row()
 
 
 class JourniListWidget(QWidget):
@@ -119,15 +146,21 @@ class JourniListWidget(QWidget):
         view = QListView()
         view.setModel(model)
         layout.addWidget(view)
+        # Entry select button
         button = QPushButton("&Go")
         button.clicked.connect(self.emit_entryselect_event)
         layout.addWidget(button)
+        # Entry add button
+        button = QPushButton("&New")
+        button.clicked.connect(self.add_new_entry)
+        layout.addWidget(button)
+        
         self.setLayout(layout)
         self.view = view
 
     def emit_entryselect_event(self):
         """
-        Emit event containing currently selected QModelIndex
+        Emit event selecting currently selected QModelIndex
         """
         indexes = self.view.selectedIndexes()
         if len(indexes) == 0:
@@ -135,6 +168,16 @@ class JourniListWidget(QWidget):
         else:
             index = indexes[0]
             self.entryselect_signal.emit(index)
+    
+    def add_new_entry(self):
+        """
+        """
+        last_row_index = self.view.model().rowCount(QModelIndex())
+        #self.view.model().insertRows(last_row_index, 1)
+        self.view.model().append_new_row()
+
+        self.view.setCurrentIndex(
+                self.view.model().index(last_row_index, 0, QModelIndex()))
 
 
 class JourniEntryWidget(QWidget):
