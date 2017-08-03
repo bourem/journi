@@ -4,7 +4,8 @@ from contextlib import contextmanager
 import time
 
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
-        QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit)
+        QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit,
+        QAction)
 from PyQt5.QtCore import (QAbstractListModel, QVariant, Qt, pyqtSignal, 
         QModelIndex, QIdentityProxyModel)
 
@@ -243,7 +244,15 @@ class JourniUI(QMainWindow):
         data = JourniData()
         self.model = JourniModel(data)
 
+    def setup_menus(self):
+        exit_menu = self.menuBar().addMenu("Main&Menu")
+        exit_action = QAction("&Quit", self)
+        exit_action.triggered.connect(self.close)
+        exit_menu.addAction(exit_action)
+
     def setup_views(self):
+        self.setup_menus()
+
         # Use QStackedWidget to 'easily' switch between views
         stacked = QStackedWidget()
         self.stacked = stacked

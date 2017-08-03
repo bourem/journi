@@ -1,7 +1,6 @@
 import sqlite3
 
-
-if __name__ == "__main__":
+def db_init(db_name="journi.db"):
     conn = sqlite3.connect('journi.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE entries
@@ -12,3 +11,6 @@ if __name__ == "__main__":
     conn.commit()
     conn.close()
 
+
+if __name__ == "__main__":
+    db_init()
