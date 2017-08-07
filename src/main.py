@@ -254,8 +254,10 @@ class JourniUI(QMainWindow):
         self.model = JourniModel(data)
 
     def setup_menus(self):
+        self.statusBar().showMessage("Hi there!")
         exit_menu = self.menuBar().addMenu("Main&Menu")
         exit_action = QAction("&Quit", self)
+        exit_action.setStatusTip("Quit this program without saving!")
         exit_action.triggered.connect(self.close)
         exit_menu.addAction(exit_action)
 
