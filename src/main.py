@@ -5,7 +5,7 @@ import time
 
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
         QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit,
-        QAction)
+        QAction, QFileDialog)
 from PyQt5.QtCore import (QAbstractListModel, QVariant, Qt, pyqtSignal, 
         QModelIndex, QIdentityProxyModel)
 
@@ -255,11 +255,38 @@ class JourniUI(QMainWindow):
 
     def setup_menus(self):
         self.statusBar().showMessage("Hi there!")
+        # MainMenu
         exit_menu = self.menuBar().addMenu("Main&Menu")
         exit_action = QAction("&Quit", self)
         exit_action.setStatusTip("Quit this program without saving!")
         exit_action.triggered.connect(self.close)
         exit_menu.addAction(exit_action)
+        # DB Menu
+        db_menu = self.menuBar().addMenu("&Database")
+        db_select_action = QAction("&Select", self)
+        db_select_action.setStatusTip("Select DB")
+        db_select_action.triggered.connect(self.db_select_menu)
+        db_menu.addAction(db_select_action)
+        db_create_action = QAction("&Create DB", self)
+        db_create_action.setStatusTip("Create new DB")
+        db_create_action.triggered.connect(self.db_create_menu)
+        db_menu.addAction(db_create_action)
+
+    def db_select_menu(self):
+        print("db_select_menu")
+        filename = QFileDialog.getOpenFileName(
+                self,
+                "Please select a working database",
+                "",
+                "SQlite files (*.db)")
+        if filename[0] != "":
+            # TODO: decide where to put db info
+            #self.model.set_data_source(filename)
+            pass
+        print(filename)
+
+    def db_create_menu(self):
+        print("db_create_menu")
 
     def setup_views(self):
         self.setup_menus()
