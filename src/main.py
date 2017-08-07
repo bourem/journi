@@ -63,7 +63,7 @@ class JourniData(object):
             c = conn.cursor()
             c.execute('''SELECT * from entries''')
             entries = c.fetchall()
-            self.data = entries
+        self.data = entries
 
     def insert_rows(self, start_index, count):
         """ Add a number of rows with default values """
@@ -183,20 +183,26 @@ class JourniListWidget(QWidget):
 
 class JourniEntryWidget(QWidget):
     """
-    Widget displaying one entry, with editable text field.
+    Widget displaying one entry for editing, with editable text field.
     """
 
     closeentry_signal = pyqtSignal()
 
     def __init__(self, model):
         super().__init__()
-        self.model = model
+        
+        # General
+        self.set_model(model)
         self.setMinimumSize(400, 100)
         layout = QVBoxLayout()
+        
+        # Data
         self.date = QLabel()
         layout.addWidget(self.date)
         self.content = QPlainTextEdit()
         layout.addWidget(self.content)
+        
+        # Buttons
         button = QPushButton("&Back")
         button.clicked.connect(self.closeentry_signal)
         layout.addWidget(button)
@@ -204,6 +210,9 @@ class JourniEntryWidget(QWidget):
         button.clicked.connect(self.save_entry)
         layout.addWidget(button)
         self.setLayout(layout)
+        
+    def set_model(self, model):
+        self.model = model
         self.current_model_index = None
         
     def set_entry(self, model_index):
@@ -231,13 +240,13 @@ class JourniUI(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        self.setup_model()
         self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle('Journi')
         self.setMinimumSize(400, 100)
         self.widgets = {}
-        self.setup_model()
         self.setup_views()
 
     def setup_model(self):
@@ -252,12 +261,12 @@ class JourniUI(QMainWindow):
 
     def setup_views(self):
         self.setup_menus()
-
+        
         # Use QStackedWidget to 'easily' switch between views
         stacked = QStackedWidget()
         self.stacked = stacked
         self.setCentralWidget(stacked)
-       
+        
         # All entries view
         list_proxy_model = JourniListProxyModel()
         list_proxy_model.setSourceModel(self.model)
@@ -265,7 +274,7 @@ class JourniUI(QMainWindow):
         widget.entryselect_signal.connect(self.show_one_entry_view)
         index = stacked.addWidget(widget)
         self.widgets["entries_list"] = widget
-
+        
         #One entry view
         widget = JourniEntryWidget(self.model)
         widget.closeentry_signal.connect(self.show_all_entries_view)
@@ -279,20 +288,11 @@ class JourniUI(QMainWindow):
     def show_all_entries_view(self):
         self.stacked.setCurrentWidget(self.widgets["entries_list"])
 
-    def select_entry(self):
-        indexes = self.view.selectedIndexes()
-        if len(indexes) == 0:
-            print("No entries selected")
-        else:
-            index = indexes[0]
-            self.show_one_entry_view(index)
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
     ui = JourniUI()
-    
     ui.show()
 
     sys.exit(app.exec_())
