@@ -1,7 +1,7 @@
 import sqlite3
 
 def db_init(db_name="journi.db"):
-    conn = sqlite3.connect('journi.db')
+    conn = sqlite3.connect(db_name)
     c = conn.cursor()
     c.execute('''CREATE TABLE entries
                  (

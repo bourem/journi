@@ -5,9 +5,11 @@ import time
 
 from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
         QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit,
-        QAction, QFileDialog)
+        QAction, QFileDialog, QInputDialog)
 from PyQt5.QtCore import (QAbstractListModel, QVariant, Qt, pyqtSignal, 
         QModelIndex, QIdentityProxyModel)
+
+from db_init import db_init
 
 
 @contextmanager
@@ -123,7 +125,10 @@ class JourniModel(QAbstractListModel):
         return True
 
     def set_data_source(self, new_data_source):
+        self.beginResetModel()
         data_source_changed = self.data_source.set_data_source(new_data_source)
+        if data_source_changed:
+            self.endResetModel()
         return data_source_changed
 
 
@@ -299,6 +304,15 @@ class JourniUI(QMainWindow):
 
     def db_create_menu(self):
         print("db_create_menu")
+        value = QInputDialog.getText(
+                self, 
+                "New database name",
+                "Type the new DB name (without file extension):")
+        if value[1] and value[0]!="":
+            new_db_name = value[0] + ".db"
+            db_init(new_db_name)
+            self.model.set_data_source(new_db_name)
+            self.statusBar().showMessage("Created new DB: " + new_db_name)
 
     def setup_views(self):
         self.setup_menus()
