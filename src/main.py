@@ -73,6 +73,15 @@ class JourniData(object):
             c.executemany('''INSERT INTO entries(date, content) VALUES (?,?)''', new_entries)
         self.refresh_all_data()
 
+    def set_data_source(self, new_data_source):
+        new_db_name = new_data_source[0]
+        if new_data_source[0] == self.db_name:
+            return False
+        else:
+            self.db_name = new_data_source[0]
+            self.refresh_all_data()
+            return True
+
 
 class JourniModel(QAbstractListModel):
 
@@ -112,6 +121,10 @@ class JourniModel(QAbstractListModel):
         self.data_source.add_entry(int(time.time()))
         self.endInsertRows()
         return True
+
+    def set_data_source(self, new_data_source):
+        data_source_changed = self.data_source.set_data_source(new_data_source)
+        return data_source_changed
 
 
 class JourniListProxyModel(QIdentityProxyModel):
@@ -273,17 +286,16 @@ class JourniUI(QMainWindow):
         db_menu.addAction(db_create_action)
 
     def db_select_menu(self):
-        print("db_select_menu")
         filename = QFileDialog.getOpenFileName(
                 self,
                 "Please select a working database",
                 "",
                 "SQlite files (*.db)")
         if filename[0] != "":
-            # TODO: decide where to put db info
-            #self.model.set_data_source(filename)
-            pass
-        print(filename)
+            self.model.set_data_source(filename)
+            self.statusBar().showMessage("Changed active DB to: " + filename[0])
+        else:
+            self.statusBar().showMessage("Didn't change the active DB")
 
     def db_create_menu(self):
         print("db_create_menu")
