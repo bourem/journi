@@ -346,6 +346,10 @@ class JourniUI(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
+    # Temporary. Create 'entries' table in 'journi.db' DB 
+    # (no-op if already exists)
+    db_init()
+
     ui = JourniUI()
     ui.show()
 

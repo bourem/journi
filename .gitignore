@@ -1,3 +1,6 @@
 journi.db
 *.py[c]
 *.swp
+dist
+build
+*.spec

@@ -3,7 +3,7 @@ import sqlite3
 def db_init(db_name="journi.db"):
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
-    c.execute('''CREATE TABLE entries
+    c.execute('''CREATE TABLE IF NOT EXISTS entries
                  (
                  id integer primary key,
                  date integer not null, 
