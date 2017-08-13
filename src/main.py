@@ -77,10 +77,10 @@ class JourniData(object):
 
     def set_data_source(self, new_data_source):
         new_db_name = new_data_source[0]
-        if new_data_source[0] == self.db_name:
+        if new_db_name == self.db_name:
             return False
         else:
-            self.db_name = new_data_source[0]
+            self.db_name = new_db_name
             self.refresh_all_data()
             return True
 
@@ -303,7 +303,6 @@ class JourniUI(QMainWindow):
             self.statusBar().showMessage("Didn't change the active DB")
 
     def db_create_menu(self):
-        print("db_create_menu")
         value = QInputDialog.getText(
                 self, 
                 "New database name",
@@ -311,7 +310,7 @@ class JourniUI(QMainWindow):
         if value[1] and value[0]!="":
             new_db_name = value[0] + ".db"
             db_init(new_db_name)
-            self.model.set_data_source(new_db_name)
+            self.model.set_data_source((new_db_name, "SQLite"))
             self.statusBar().showMessage("Created new DB: " + new_db_name)
 
     def setup_views(self):

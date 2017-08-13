@@ -11,6 +11,16 @@ def db_init(db_name="journi.db"):
     conn.commit()
     conn.close()
 
+def db_list_entries(db_name="journi.db"):
+    conn = sqlite3.connect(db_name)
+    c = conn.cursor()
+    c.execute('''SELECT * from  entries;''')
+    entries = c.fetchall()
+    conn.commit()
+    conn.close()
+    print(entries)
+
 
 if __name__ == "__main__":
-    db_init()
+    db_init("test.db")
+    db_list_entries("test.db")
