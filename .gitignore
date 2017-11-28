@@ -1,6 +1,8 @@
-journi.db
+*.db
 *.py[c]
 *.swp
 dist
 build
 *.spec
+.tox
+journi.egg-info

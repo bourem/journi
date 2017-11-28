@@ -1,8 +1,16 @@
-import sqlite3
+"""
+journi.db_populate_dummy
 
+Module used exclusively to populate a database 'test.db' already containing
+a table 'entries', with a couple dummy entries.
+
+TODO: move to tests.
+"""
 
 if __name__ == "__main__":
-    conn = sqlite3.connect('journi.db')
+    import sqlite3
+
+    conn = sqlite3.connect('test.db')
     c = conn.cursor()
     dummy_values = [
             ("2017-01-01", "auienrstiuenrstaiunrset"),
