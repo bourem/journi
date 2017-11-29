@@ -1,36 +1,32 @@
+"""
+Monolytic qt5 app
+"""
+
 import sqlite3
 import sys
-from contextlib import contextmanager
 import time
 
-from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout, 
+from PyQt5.QtWidgets import (QApplication, QWidget, QListView, QVBoxLayout,
         QPushButton, QStackedWidget, QMainWindow, QLabel, QPlainTextEdit,
         QAction, QFileDialog, QInputDialog)
-from PyQt5.QtCore import (QAbstractListModel, QVariant, Qt, pyqtSignal, 
+from PyQt5.QtCore import (QAbstractListModel, QVariant, Qt, pyqtSignal,
         QModelIndex, QIdentityProxyModel)
 
-from db_init import db_init
-
-
-@contextmanager
-def db_connect(db_name):
-    """ With statement context manager for DB Connection """
-    conn = sqlite3.connect(db_name)
-    yield conn
-    conn.commit()
-    conn.close()
+from db_utils import db_init, db_connect
 
 
 class JourniData(object):
     """ Class to serve and set Journi data stored in SQLite db """
 
-    db_name_default = "journi.db"
-
-    def __init__(self, db_name=None):
-        self.db_name = db_name if db_name else self.db_name_default
+    def __init__(self, db_name="journi.db"):
+        self.db_name = db_name
         self.refresh_all_data()
 
     def count(self):
+        """ Returns the number of entries currently loaded.
+
+        This is not necessarily equal to the number of entries in the db
+        """
         return len(self.data)
 
     def get_item_at(self, index):
@@ -40,43 +36,45 @@ class JourniData(object):
         data = self.data[index]
         data = (data[0],data[1], new_content)
         self.data[index] = data
-        with db_connect(self.db_name) as conn:
-            c = conn.cursor()
-            c.execute(
+        with db_connect(self.db_name) as cursor:
+            cursor.execute(
                     '''UPDATE entries SET content=? WHERE ID=?''',
                     (data[2], data[0]))
 
     def add_entry(self, date=time.time(), content=""):
-        """ Add an entry to the DB.
+        """ Adds an entry to the DB.
 
         date: string
         content: string
         """
-        with db_connect(self.db_name) as conn:
-            c = conn.cursor()
+        with db_connect(self.db_name) as cursor:
             new_entry = (date, content)
-            c.execute('''INSERT INTO entries(date, content) VALUES (?,?)''', new_entry)
-            new_index = c.lastrowid
+            cursor.execute('''INSERT INTO entries(date, content)
+                                     VALUES (?,?)''', new_entry)
+            new_index = cursor.lastrowid
         self.data.append((new_index, date, content))
 
     def refresh_all_data(self):
         """ Replace data by current data in db."""
-        with db_connect(self.db_name) as conn:
-            c = conn.cursor()
-            c.execute('''SELECT * from entries''')
-            entries = c.fetchall()
+        with db_connect(self.db_name) as cursor:
+            cursor.execute('''SELECT * from entries''')
+            entries = cursor.fetchall()
         self.data = entries
 
     def insert_rows(self, start_index, count):
         """ Add a number of rows with default values """
-        with db_connect(self.db_name) as conn:
-            c = conn.cursor()
+        with db_connect(self.db_name) as cursor:
             new_entries = [(time.time(), "") for i in range(count)]
-            c.executemany('''INSERT INTO entries(date, content) VALUES (?,?)''', new_entries)
+            cursor.executemany('''INSERT INTO entries(date, content)
+                                         VALUES (?,?)''', new_entries)
         self.refresh_all_data()
 
     def set_data_source(self, new_data_source):
-        new_db_name = new_data_source[0]
+        """ Sets up a new sqlite db as data source.
+
+        new_data_source: string - relative path to the db, including filename.
+        """
+        new_db_name = new_data_source
         if new_db_name == self.db_name:
             return False
         else:
@@ -136,15 +134,22 @@ class JourniListProxyModel(QIdentityProxyModel):
 
     def __init__(self):
         super(JourniListProxyModel, self).__init__()
-    
+
+    def format_entry_time(self, timestamp):
+        return time.strftime("%Y-%m-%d", time.localtime(timestamp))
+
+    def format_entry_abstract(self, entry_content):
+        if len(entry_content) > 20:
+            return entry_content[:20] + "…"
+        return entry_content[:20]
+
     def data(self, model_index, role):
         if role != Qt.DisplayRole:
             return self.sourceModel().data(model_index, role)
 
         data = list(self.sourceModel().data(model_index, role))
-        data[0] = time.strftime("%Y-%m-%d", time.localtime(data[0]))
-        if len(data[1]) > 20:
-            data[1] = data[1][:20] + "…"
+        data[0] = self.format_entry_time(data[0])
+        data[1] = self.format_entry_abstract(data[1])
         return "{0[0]} - {0[1]}".format(data)
 
     def append_new_row(self):
@@ -155,7 +160,7 @@ class JourniListWidget(QWidget):
     """
     Widget displaying the list of all entries, with a select button.
     """
-    
+
     # Needs to be a class member
     entryselect_signal = pyqtSignal([QModelIndex])
 
@@ -174,7 +179,7 @@ class JourniListWidget(QWidget):
         button = QPushButton("&New")
         button.clicked.connect(self.add_new_entry)
         layout.addWidget(button)
-        
+
         self.setLayout(layout)
         self.view = view
 
@@ -188,7 +193,7 @@ class JourniListWidget(QWidget):
         else:
             index = indexes[0]
             self.entryselect_signal.emit(index)
-    
+
     def add_new_entry(self):
         """
         """
@@ -208,18 +213,18 @@ class JourniEntryWidget(QWidget):
 
     def __init__(self, model):
         super().__init__()
-        
+
         # General
         self.set_model(model)
         self.setMinimumSize(400, 100)
         layout = QVBoxLayout()
-        
+
         # Data
         self.date = QLabel()
         layout.addWidget(self.date)
         self.content = QPlainTextEdit()
         layout.addWidget(self.content)
-        
+
         # Buttons
         button = QPushButton("&Back")
         button.clicked.connect(self.closeentry_signal)
@@ -228,11 +233,11 @@ class JourniEntryWidget(QWidget):
         button.clicked.connect(self.save_entry)
         layout.addWidget(button)
         self.setLayout(layout)
-        
+
     def set_model(self, model):
         self.model = model
         self.current_model_index = None
-        
+
     def set_entry(self, model_index):
         data = self.model.data(model_index, Qt.EditRole)
         date_string = time.strftime("%Y-%m-%d (%a)", time.localtime(data[0]))
@@ -240,7 +245,7 @@ class JourniEntryWidget(QWidget):
         self.content.setDocumentTitle(date_string)
         self.content.setPlainText(data[1])
         self.current_model_index = model_index
-    
+
     def save_entry(self):
         self.model.setData(
                 self.current_model_index,
@@ -255,7 +260,7 @@ class JourniUI(QMainWindow):
     """
     Main app window.
     """
-    
+
     def __init__(self):
         super().__init__()
         self.setup_model()
@@ -297,30 +302,30 @@ class JourniUI(QMainWindow):
                 "",
                 "SQlite files (*.db)")
         if filename[0] != "":
-            self.model.set_data_source(filename)
+            self.model.set_data_source(filename[0])
             self.statusBar().showMessage("Changed active DB to: " + filename[0])
         else:
             self.statusBar().showMessage("Didn't change the active DB")
 
     def db_create_menu(self):
         value = QInputDialog.getText(
-                self, 
+                self,
                 "New database name",
                 "Type the new DB name (without file extension):")
         if value[1] and value[0]!="":
             new_db_name = value[0] + ".db"
             db_init(new_db_name)
-            self.model.set_data_source((new_db_name, "SQLite"))
+            self.model.set_data_source(new_db_name, "SQLite")
             self.statusBar().showMessage("Created new DB: " + new_db_name)
 
     def setup_views(self):
         self.setup_menus()
-        
+
         # Use QStackedWidget to 'easily' switch between views
         stacked = QStackedWidget()
         self.stacked = stacked
         self.setCentralWidget(stacked)
-        
+
         # All entries view
         list_proxy_model = JourniListProxyModel()
         list_proxy_model.setSourceModel(self.model)
@@ -328,7 +333,7 @@ class JourniUI(QMainWindow):
         widget.entryselect_signal.connect(self.show_one_entry_view)
         index = stacked.addWidget(widget)
         self.widgets["entries_list"] = widget
-        
+
         #One entry view
         widget = JourniEntryWidget(self.model)
         widget.closeentry_signal.connect(self.show_all_entries_view)
@@ -343,10 +348,10 @@ class JourniUI(QMainWindow):
         self.stacked.setCurrentWidget(self.widgets["entries_list"])
 
 
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
-    
-    # Temporary. Create 'entries' table in 'journi.db' DB 
+
+    # Temporary. Create 'entries' table in 'journi.db' DB
     # (no-op if already exists)
     db_init()
 
@@ -354,3 +359,6 @@ if __name__ == "__main__":
     ui.show()
 
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()

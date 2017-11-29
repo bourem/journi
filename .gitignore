@@ -1,8 +1,12 @@
+__pycache__/
+*.py[cod]
+
 *.db
-*.py[c]
 *.swp
-dist
-build
 *.spec
-.tox
+
+dist/
+build/
+.tox/
+.cache/
 journi.egg-info

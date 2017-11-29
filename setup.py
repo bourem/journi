@@ -5,7 +5,9 @@ setup(
     version='0.0.1',
     license='Unlicense',
     description='Simplistic diary app',
-    long_description='Simplistic and unusable diary app working on QT5.',
+    long_description='Simplistic and unusable diary app working on qt5.'
+                     'Only written for testing pyqt5.',
     author='RB',
-    packages=['journi']
+    packages=['journi'],
+    test_suite='test'
 )
